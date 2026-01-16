@@ -9,80 +9,63 @@
     {% raw %}
     <div id="app" class="container mx-auto px-4 py-8">
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold">Domain Manager</h1>
-            <a href="/ssl" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
-                SSL Monitor →
-            </a>
+            <h1 class="text-3xl font-bold text-gray-800">Domain Manager</h1>
+            <a href="/ssl" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition">SSL Monitor →</a>
         </div>
-        
-        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-semibold mb-4">Bulk Add Domains</h2>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-2">Enter subdomains (one per line):</label>
-                <textarea 
-                    v-model="bulkDomains" 
-                    placeholder="subdomain1&#10;subdomain2"
-                    class="w-full border p-2 rounded h-32"
-                ></textarea>
-            </div>
-            <div class="grid grid-cols-3 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Record Type:</label>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8 border-t-4 border-blue-500">
+            <h2 class="text-xl font-semibold mb-4">Bulk Actions (DNS)</h2>
+            <textarea v-model="bulkDomains" class="w-full border p-3 rounded h-32 mb-4 font-mono text-sm" placeholder="subdomain1&#10;subdomain2"></textarea>
+            
+            <div class="flex flex-wrap items-end gap-4">
+                <div class="w-32">
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Type</label>
                     <select v-model="bulkType" class="w-full border p-2 rounded">
                         <option value="A">A Record</option>
                         <option value="CNAME">CNAME</option>
                     </select>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2">IP Address / Target:</label>
-                    <input v-model="bulkIp" placeholder="192.168.1.1" class="w-full border p-2 rounded">
+                <div class="flex-grow">
+                    <label class="block text-xs font-bold text-gray-500 uppercase">IP / Target</label>
+                    <input v-model="bulkIp" placeholder="1.2.3.4" class="w-full border p-2 rounded">
                 </div>
-                <div class="flex items-end">
-                    <button @click="addBulkRecords" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Add All Domains
-                    </button>
+                <div class="flex gap-2">
+                    <button @click="addBulk" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add to DNS</button>
+                    <button @click="removeBulk" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Remove from DNS</button>
+                    <button @click="bulkDomains = ''" class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">Clear Text</button>
                 </div>
             </div>
-            
-            <div v-if="bulkMessage" class="mt-4 p-4 rounded" :class="bulkMessageClass">
-                <div v-html="bulkMessage"></div>
-            </div>
+
+            <div v-if="bulkMessage" :class="bulkClass" class="mt-4 p-4 rounded text-sm" v-html="bulkMessage"></div>
         </div>
 
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold">DNS Records</h2>
-                <div v-if="selectedRecords.length > 0" class="flex gap-2">
-                    <input v-model="bulkUpdateIp" placeholder="New IP for selected" class="border p-2 rounded text-sm">
-                    <button @click="bulkUpdateSelected" class="bg-orange-500 text-white px-4 py-2 rounded text-sm hover:bg-orange-600">
-                        Update {{ selectedRecords.length }} Selected
-                    </button>
-                </div>
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
+                <h2 class="font-bold text-gray-700">Live DNS Records</h2>
+                <button @click="fetchRecords" class="text-sm text-blue-600 hover:underline">Refresh List</button>
             </div>
-            <table class="w-full text-sm">
+            <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="border-b bg-gray-50">
-                        <th class="p-2 text-left"><input type="checkbox" v-model="selectAll" @change="toggleSelectAll"></th>
-                        <th class="p-2 text-left">Host</th>
-                        <th class="p-2 text-left">Type</th>
-                        <th class="p-2 text-left">Answer</th>
-                        <th class="p-2 text-left">Actions</th>
+                    <tr class="bg-gray-100 text-xs uppercase text-gray-600">
+                        <th class="p-4">Host</th>
+                        <th class="p-4">Type</th>
+                        <th class="p-4">Answer</th>
+                        <th class="p-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="record in records" :key="record.id" class="border-b hover:bg-gray-50">
-                        <td class="p-2"><input type="checkbox" :value="record.id" v-model="selectedRecords"></td>
-                        <td class="p-2"><input v-model="record.host" class="border p-1 rounded w-full"></td>
-                        <td class="p-2">
+                    <tr v-for="record in records" :key="record.id" class="border-t hover:bg-gray-50">
+                        <td class="p-4"><input v-model="record.host" class="border p-1 rounded w-full"></td>
+                        <td class="p-4">
                             <select v-model="record.type" class="border p-1 rounded">
                                 <option value="A">A</option>
                                 <option value="CNAME">CNAME</option>
                             </select>
                         </td>
-                        <td class="p-2"><input v-model="record.answer" class="border p-1 rounded w-full"></td>
-                        <td class="p-2">
-                            <button @click="updateRecord(record)" class="text-green-600 font-bold mr-2">Save</button>
-                            <button @click="deleteRecord(record.id)" class="text-red-600 font-bold">Delete</button>
+                        <td class="p-4"><input v-model="record.answer" class="border p-1 rounded w-full text-sm"></td>
+                        <td class="p-4 text-right">
+                            <button @click="save(record)" class="text-green-600 font-bold mr-3">Save</button>
+                            <button @click="remove(record.id)" class="text-red-600 font-bold">Delete</button>
                         </td>
                     </tr>
                 </tbody>
@@ -97,15 +80,8 @@
             data() {
                 return {
                     records: [],
-                    selectedRecords: [],
-                    selectAll: false,
-                    bulkDomains: '',
-                    bulkType: 'A',
-                    bulkIp: '',
-                    bulkMessage: '',
-                    bulkMessageClass: '',
-                    bulkUpdateIp: '',
-                    newRecord: { host: '', type: 'A', answer: '' }
+                    bulkDomains: '', bulkType: 'A', bulkIp: '',
+                    bulkMessage: '', bulkClass: ''
                 }
             },
             mounted() { this.fetchRecords() },
@@ -115,43 +91,44 @@
                     const data = await res.json();
                     this.records = data.records || [];
                 },
-                async addBulkRecords() {
+                async addBulk() {
                     const domains = this.bulkDomains.split(/[\n,]+/).map(d => d.trim()).filter(d => d);
-                    const response = await fetch('/api/records/bulk', {
+                    const res = await fetch('/api/records/bulk', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ domains, ip_address: this.bulkIp, type: this.bulkType })
                     });
-                    const results = await response.json();
-                    this.bulkMessage = `Success: ${results.success.length}, Failed: ${results.failed.length}`;
-                    this.bulkMessageClass = results.failed.length > 0 ? 'bg-yellow-100' : 'bg-green-100';
+                    const data = await res.json();
+                    this.bulkMessage = `Added ${data.success.length}. Failed ${data.failed.length}.`;
+                    this.bulkClass = 'bg-green-100 text-green-800';
                     this.fetchRecords();
                 },
-                async updateRecord(record) {
-                    await fetch(`/api/records/${record.id}`, {
+                async removeBulk() {
+                    const domains = this.bulkDomains.split(/[\n,]+/).map(d => d.trim()).filter(d => d);
+                    if(!confirm(`Delete these ${domains.length} hostnames from DNS?`)) return;
+                    const res = await fetch('/api/records/bulk-delete-by-hostname', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ domains })
+                    });
+                    const data = await res.json();
+                    this.bulkMessage = `Deleted ${data.success.length}. Errors ${data.failed.length}.`;
+                    this.bulkClass = 'bg-red-100 text-red-800';
+                    this.fetchRecords();
+                },
+                async save(r) {
+                    await fetch(`/api/records/${r.id}`, {
                         method: 'PUT',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(record)
+                        body: JSON.stringify(r)
                     });
-                    alert('Record updated');
+                    alert('Updated');
                 },
-                async deleteRecord(id) {
+                async remove(id) {
                     if(confirm('Delete?')) {
                         await fetch(`/api/records/${id}`, { method: 'DELETE' });
                         this.fetchRecords();
                     }
-                },
-                toggleSelectAll() {
-                    this.selectedRecords = this.selectAll ? this.records.map(r => r.id) : [];
-                },
-                async bulkUpdateSelected() {
-                    await fetch('/api/records/bulk-update', {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ record_ids: this.selectedRecords, new_ip: this.bulkUpdateIp })
-                    });
-                    this.selectedRecords = [];
-                    this.fetchRecords();
                 }
             }
         }).mount('#app')
