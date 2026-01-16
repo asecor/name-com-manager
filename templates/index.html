@@ -6,244 +6,155 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 <body class="bg-gray-100">
+    {% raw %}
     <div id="app" class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold mb-8">Domain Manager</h1>
-
-        <!-- Add Record Form -->
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold">Domain Manager</h1>
+            <a href="/ssl" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                SSL Monitor →
+            </a>
+        </div>
+        
         <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-semibold mb-4">Add New Record</h2>
-            <div class="grid grid-cols-4 gap-4">
-                <input v-model="newRecord.host" placeholder="Host" class="border p-2 rounded">
-                <select v-model="newRecord.type" class="border p-2 rounded">
-                    <option value="A">A Record</option>
-                    <option value="CNAME">CNAME</option>
-                </select>
-                <input v-model="newRecord.answer" placeholder="Answer (IP/Domain)" class="border p-2 rounded">
-                <button @click="addRecord" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                    Add Record
-                </button>
+            <h2 class="text-xl font-semibold mb-4">Bulk Add Domains</h2>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Enter subdomains (one per line):</label>
+                <textarea 
+                    v-model="bulkDomains" 
+                    placeholder="subdomain1&#10;subdomain2"
+                    class="w-full border p-2 rounded h-32"
+                ></textarea>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Record Type:</label>
+                    <select v-model="bulkType" class="w-full border p-2 rounded">
+                        <option value="A">A Record</option>
+                        <option value="CNAME">CNAME</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">IP Address / Target:</label>
+                    <input v-model="bulkIp" placeholder="192.168.1.1" class="w-full border p-2 rounded">
+                </div>
+                <div class="flex items-end">
+                    <button @click="addBulkRecords" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Add All Domains
+                    </button>
+                </div>
+            </div>
+            
+            <div v-if="bulkMessage" class="mt-4 p-4 rounded" :class="bulkMessageClass">
+                <div v-html="bulkMessage"></div>
             </div>
         </div>
 
-        <!-- Records Table -->
-        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-semibold mb-4">DNS Records</h2>
-            <table class="w-full">
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">DNS Records</h2>
+                <div v-if="selectedRecords.length > 0" class="flex gap-2">
+                    <input v-model="bulkUpdateIp" placeholder="New IP for selected" class="border p-2 rounded text-sm">
+                    <button @click="bulkUpdateSelected" class="bg-orange-500 text-white px-4 py-2 rounded text-sm hover:bg-orange-600">
+                        Update {{ selectedRecords.length }} Selected
+                    </button>
+                </div>
+            </div>
+            <table class="w-full text-sm">
                 <thead>
-                    <tr class="border-b">
-                        <th class="text-left p-2">Host</th>
-                        <th class="text-left p-2">Type</th>
-                        <th class="text-left p-2">Answer</th>
-                        <th class="text-left p-2">Actions</th>
+                    <tr class="border-b bg-gray-50">
+                        <th class="p-2 text-left"><input type="checkbox" v-model="selectAll" @change="toggleSelectAll"></th>
+                        <th class="p-2 text-left">Host</th>
+                        <th class="p-2 text-left">Type</th>
+                        <th class="p-2 text-left">Answer</th>
+                        <th class="p-2 text-left">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="record in records" :key="record.id" class="border-b">
-                        <td class="p-2">
-                            <input v-model="record.host" class="border p-1 rounded">
-                        </td>
+                    <tr v-for="record in records" :key="record.id" class="border-b hover:bg-gray-50">
+                        <td class="p-2"><input type="checkbox" :value="record.id" v-model="selectedRecords"></td>
+                        <td class="p-2"><input v-model="record.host" class="border p-1 rounded w-full"></td>
                         <td class="p-2">
                             <select v-model="record.type" class="border p-1 rounded">
-                                <option value="A">A Record</option>
+                                <option value="A">A</option>
                                 <option value="CNAME">CNAME</option>
                             </select>
                         </td>
+                        <td class="p-2"><input v-model="record.answer" class="border p-1 rounded w-full"></td>
                         <td class="p-2">
-                            <input v-model="record.answer" class="border p-1 rounded">
-                        </td>
-                        <td class="p-2">
-                            <button @click="updateRecord(record)" 
-                                    class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 mr-2">
-                                Save
-                            </button>
-                            <button @click="deleteRecord(record.id)"
-                                    class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">
-                                Delete
-                            </button>
+                            <button @click="updateRecord(record)" class="text-green-600 font-bold mr-2">Save</button>
+                            <button @click="deleteRecord(record.id)" class="text-red-600 font-bold">Delete</button>
                         </td>
                     </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- SSL Check Section -->
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-semibold mb-4">SSL Check Results</h2>
-            <!-- Form for inputting domains -->
-            <div class="mb-4">
-                <textarea
-                    v-model="sslDomains"
-                    placeholder="Enter domains, one per line"
-                    class="w-full p-2 border rounded mb-2"
-                    rows="4"
-                ></textarea>
-                <button
-                    @click="checkSSL"
-                    class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mr-2"
-                >
-                    Check SSL Certificates
-                </button>
-                <button
-                    @click="clearSSLData"
-                    class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                >
-                    Clear Data
-                </button>
-            </div>
-            <!-- SSL Check Results Table -->
-            <table class="w-full">
-                <thead>
-                <tr class="border-b">
-                    <th class="text-left p-2">Domain</th>
-                    <th class="text-left p-2">Valid</th>
-                    <th class="text-left p-2">Expiration Date</th>
-                    <th class="text-left p-2">Days Remaining</th>
-                    <th class="text-left p-2">Error</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% raw %}
-                <tr v-for="result in sslResults" v-if="sslResults.length > 0" :key="result.domain" class="border-b">
-                    <td class="p-2">{{ result.domain }}</td>
-                    <td class="p-2">
-                        <span v-if="result.valid">Yes</span>
-                        <span v-else>No</span>
-                    </td>
-                    <td class="p-2">{{ result.expire_date || '-' }}</td>
-                    <td class="p-2">{{ result.days_remaining || '-' }}</td>
-                    <td class="p-2">{{ result.error || '-' }}</td>
-                </tr>
-                <tr v-else>
-                    <td colspan="5" class="p-2 text-center">No SSL checks performed yet.</td>
-                </tr>
-                {% endraw %}
                 </tbody>
             </table>
         </div>
     </div>
+    {% endraw %}
 
     <script>
         const { createApp } = Vue
-
         createApp({
             data() {
                 return {
                     records: [],
-                    newRecord: {
-                        host: '',
-                        type: 'A',
-                        answer: ''
-                    },
-                    sslDomains: '', // Input for domains
-                    sslResults: []  // Results from SSL check
+                    selectedRecords: [],
+                    selectAll: false,
+                    bulkDomains: '',
+                    bulkType: 'A',
+                    bulkIp: '',
+                    bulkMessage: '',
+                    bulkMessageClass: '',
+                    bulkUpdateIp: '',
+                    newRecord: { host: '', type: 'A', answer: '' }
                 }
             },
-            mounted() {
-                this.fetchRecords();
-                this.loadSSLData(); // Load saved SSL data on page load
-            },
+            mounted() { this.fetchRecords() },
             methods: {
                 async fetchRecords() {
-                    const response = await fetch('/api/records')
-                    const data = await response.json()
-                    this.records = data.records
+                    const res = await fetch('/api/records');
+                    const data = await res.json();
+                    this.records = data.records || [];
                 },
-                async addRecord() {
-                    await fetch('/api/records', {
+                async addBulkRecords() {
+                    const domains = this.bulkDomains.split(/[\n,]+/).map(d => d.trim()).filter(d => d);
+                    const response = await fetch('/api/records/bulk', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(this.newRecord)
-                    })
-                    this.newRecord = { host: '', type: 'A', answer: '' }
-                    await this.fetchRecords()
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ domains, ip_address: this.bulkIp, type: this.bulkType })
+                    });
+                    const results = await response.json();
+                    this.bulkMessage = `Success: ${results.success.length}, Failed: ${results.failed.length}`;
+                    this.bulkMessageClass = results.failed.length > 0 ? 'bg-yellow-100' : 'bg-green-100';
+                    this.fetchRecords();
                 },
                 async updateRecord(record) {
                     await fetch(`/api/records/${record.id}`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(record)
-                    })
-                    await this.fetchRecords()
+                    });
+                    alert('Record updated');
                 },
                 async deleteRecord(id) {
-                    await fetch(`/api/records/${id}`, {
-                        method: 'DELETE'
-                    })
-                    await this.fetchRecords()
-                },
-                async checkSSL() {
-                    const domains = this.sslDomains.split('\n').filter(domain => domain.trim() !== '');
-                    this.sslResults = []; // Clear previous results
-
-                    for (const domain of domains) {
-                        try {
-                            const response = await fetch(`/api/ssl-check/${domain}`);
-                            
-                            // Check if the response is OK (status code 200)
-                            if (!response.ok) {
-                                throw new Error(`API request failed with status ${response.status}`);
-                            }
-
-                            const data = await response.json();
-
-                            // Check if the API response is valid
-                            if (!data || !data.result) {
-                                throw new Error('Invalid API response');
-                            }
-
-                            // Map the API response to the expected format
-                            this.sslResults.push({
-                                domain: domain,
-                                valid: data.result.cert_valid,
-                                expire_date: data.result.valid_till || '-',
-                                days_remaining: data.result.days_left || '-',
-                                error: data.result.cert_exp ? 'Certificate expired' : '-'
-                            });
-                        } catch (error) {
-                            console.error(`Error checking SSL for ${domain}:`, error);
-                            this.sslResults.push({
-                                domain: domain,
-                                valid: false,
-                                expire_date: '-',
-                                days_remaining: '-',
-                                error: 'Failed to check SSL certificate'
-                            });
-                        }
-                    }
-
-                    // Save SSL data to localStorage
-                    this.saveSSLData();
-                },
-                saveSSLData() {
-                    // Save sslDomains and sslResults to localStorage
-                    localStorage.setItem('sslDomains', this.sslDomains);
-                    localStorage.setItem('sslResults', JSON.stringify(this.sslResults));
-                },
-                loadSSLData() {
-                    // Load sslDomains and sslResults from localStorage
-                    const savedDomains = localStorage.getItem('sslDomains');
-                    const savedResults = localStorage.getItem('sslResults');
-
-                    if (savedDomains) {
-                        this.sslDomains = savedDomains;
-                    }
-                    if (savedResults) {
-                        this.sslResults = JSON.parse(savedResults);
+                    if(confirm('Delete?')) {
+                        await fetch(`/api/records/${id}`, { method: 'DELETE' });
+                        this.fetchRecords();
                     }
                 },
-                clearSSLData() {
-                    // Clear sslDomains and sslResults
-                    this.sslDomains = '';
-                    this.sslResults = [];
-                    // Remove saved data from localStorage
-                    localStorage.removeItem('sslDomains');
-                    localStorage.removeItem('sslResults');
+                toggleSelectAll() {
+                    this.selectedRecords = this.selectAll ? this.records.map(r => r.id) : [];
+                },
+                async bulkUpdateSelected() {
+                    await fetch('/api/records/bulk-update', {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ record_ids: this.selectedRecords, new_ip: this.bulkUpdateIp })
+                    });
+                    this.selectedRecords = [];
+                    this.fetchRecords();
                 }
             }
         }).mount('#app')
     </script>
 </body>
+</html>

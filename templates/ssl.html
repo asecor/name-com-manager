@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSL Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-gray-100">
+    {% raw %}
+    <div id="app" class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold">SSL Certificate Monitor</h1>
+            <a href="/" class="text-blue-500 hover:underline">← Back to DNS</a>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <label class="block mb-2 font-medium">Domains to Check (one per line):</label>
+            <textarea v-model="domainsInput" class="w-full border p-2 rounded h-32 mb-4" placeholder="example.com&#10;google.com"></textarea>
+            <button @click="checkSSL" :disabled="loading" class="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700 disabled:bg-gray-400">
+                {{ loading ? 'Checking...' : 'Check Certificates' }}
+            </button>
+        </div>
+
+        <div v-if="results.length > 0" class="bg-white rounded-lg shadow-md overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="p-3 text-left">Domain</th>
+                        <th class="p-3 text-left">Status</th>
+                        <th class="p-3 text-left">Expiry Date</th>
+                        <th class="p-3 text-left">Days Left</th>
+                        <th class="p-3 text-left">Issuer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="res in results" :key="res.domain" class="border-t">
+                        <td class="p-3 font-medium">{{ res.domain }}</td>
+                        <td class="p-3">
+                            <span :class="res.status === 'valid' ? 'text-green-600' : 'text-red-600'">
+                                {{ res.status.toUpperCase() }}
+                            </span>
+                        </td>
+                        <td class="p-3">{{ res.expires || 'N/A' }}</td>
+                        <td class="p-3">
+                            <span :class="res.days_remaining < 15 ? 'text-red-600 font-bold' : ''">
+                                {{ res.days_remaining }}
+                            </span>
+                        </td>
+                        <td class="p-3 text-sm text-gray-600">{{ res.issuer }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endraw %}
+
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() {
+                return {
+                    domainsInput: '',
+                    results: [],
+                    loading: false
+                }
+            },
+            methods: {
+                async checkSSL() {
+                    this.loading = true;
+                    const domains = this.domainsInput.split('\n').map(d => d.trim()).filter(d => d);
+                    try {
+                        const res = await fetch('/api/ssl-check', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ domains })
+                        });
+                        this.results = await res.json();
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
